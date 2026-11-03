@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Parar, Atualizar e Reiniciar
         run: |
-          $projectPath = "C:\Users\Administrator\Desktop\GatewayAPI"
+          $projectPath = "C:\Users\Administrator\Desktop\GatewayAPI\GatewayAPI"
           $taskName = "GatewayAPI"
           $processName = "GatewayAPI"
           

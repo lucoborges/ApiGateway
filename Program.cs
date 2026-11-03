@@ -137,8 +137,8 @@ try
     }
 
     Console.WriteLine("\n✅ API Gateway iniciado com sucesso!");
-    Console.WriteLine("📍 Endpoint: http://192.168.1.3:5000");
-    Console.WriteLine("📚 Swagger: http://192.168.1.3:5000/swagger");
+    Console.WriteLine("📍 Endpoint: http://192.168.1.250:5000");
+    Console.WriteLine("📚 Swagger: http://192.168.1.250:5000/swagger");
 }
 catch (Exception ex)
 {
