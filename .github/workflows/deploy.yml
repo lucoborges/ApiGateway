@@ -1,0 +1,38 @@
+name: Deploy Automático .NET Core
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: self-hosted 
+    steps:
+      - name: Parar, Atualizar e Reiniciar
+        run: |
+          $projectPath = "C:\Users\Administrator\Desktop\GatewayAPI"
+          $taskName = "GatewayAPI"
+          $processName = "GatewayAPI"
+          
+          Write-Host "1. Parando..."
+          Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          
+          Write-Host "2. Atualizando e compilando..."
+          cd $projectPath
+          git pull origin master
+          dotnet build
+          
+          Write-Host "3. Iniciando..."
+          Start-ScheduledTask -TaskName $taskName
+          Start-Sleep -Seconds 5
+          
+          $proc = Get-Process -Name $processName -ErrorAction SilentlyContinue
+          if ($proc) {
+              Write-Host "✅ SUCESSO! PID: $($proc.Id)" -ForegroundColor Green
+          } else {
+              Write-Host "❌ ERRO: Processo não iniciou" -ForegroundColor Red
+              exit 1
+          }
