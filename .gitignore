@@ -11,3 +11,7 @@ obj/
 # Publicação e logs
 publish/
 *.log
+
+# Logs do gateway e resultados de teste
+logs/
+TestResults/

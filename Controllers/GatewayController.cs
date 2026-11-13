@@ -15,16 +15,15 @@ namespace GatewayAPI.Controllers
         private readonly IServiceRouter _serviceRouter;
         private readonly ILogger<GatewayController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly string _aribaServicoUrl;
+        private readonly Configuracao.ServicosDestino _servicos;
 
         public GatewayController(
             IServiceRouter serviceRouter,
             ILogger<GatewayController> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            Configuracao.ServicosDestino servicos)
         {
-            _aribaServicoUrl = (configuration.GetValue<string>("Gateway:Ariba:ServicoUrl")
-                ?? Endpoints.AribaEndpoints.ServicoUrlPadrao).TrimEnd('/');
+            _servicos = servicos;
             _serviceRouter = serviceRouter;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -239,7 +238,7 @@ namespace GatewayAPI.Controllers
                 using var reader = new StreamReader(Request.Body);
                 var json = await reader.ReadToEndAsync();
 
-                _logger.LogInformation("📥 [GATEWAY] JSON recebido: {Json}", json);
+                _logger.LogDebug("📥 [GATEWAY] JSON recebido: {Json}", json);
 
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -264,16 +263,8 @@ namespace GatewayAPI.Controllers
                 _logger.LogInformation("🔍 [GATEWAY] Processando: {CodigoTarefa} - {TipoTarefa}",
                     codigoTarefa, tipoTarefa);
 
-                string targetUrl = tipoTarefa.ToUpper() switch
-                {
-                    "PRODUTO" => "http://localhost:6001/api/produtos/cadastrar",
-                    "FORNECEDOR" => "http://localhost:6002/api/fornecedores/cadastrar",
-                    "CLIENTE" => "http://localhost:6003/api/clientes/cadastrar",
-                    "DATASHEET" => "http://localhost:6004/api/datasheet/processar",
-                    // AribaSourcing: inicia o processamento / define a prioridade das empresas (dados.prioridade)
-                    "ARIBA" => $"{_aribaServicoUrl}/api/ariba/iniciar",
-                    _ => throw new ArgumentException($"Tipo de tarefa inválido: {tipoTarefa}")
-                };
+                // Endereços vêm de Gateway:Servicos no appsettings.json
+                string targetUrl = _servicos.UrlDaTarefa(tipoTarefa);
 
                 var payload = new
                 {
@@ -283,35 +274,8 @@ namespace GatewayAPI.Controllers
 
                 _logger.LogInformation("🔀 [GATEWAY] Encaminhando para: {Url}", targetUrl);
 
-                // ⭐⭐⭐ CRIAR CLIENTE COM TIMEOUT CORRETO ⭐⭐⭐
-                // Usar SocketsHttpHandler para .NET 5+ / .NET Core
-                var handler = new SocketsHttpHandler
-                {
-                    // ⭐ Tempo máximo de conexão
-                    ConnectTimeout = TimeSpan.FromMinutes(5),
-
-                    // ⭐ Tempo máximo de inatividade
-                    PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
-
-                    // ⭐ Tempo máximo de vida da conexão
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(10),
-
-                    // ⭐ Máximo de conexões simultâneas
-                    MaxConnectionsPerServer = 20,
-
-                    // ⭐ Timeout para leitura/escrita (opcional)
-                    // Nota: Isso é gerenciado pelo HttpClient.Timeout
-                };
-
-                using var client = new HttpClient(handler)
-                {
-                    // ⭐ TIMEOUT PRINCIPAL - 60 minutos
-                    Timeout = TimeSpan.FromMinutes(60)
-                };
-
-                // Headers padrão
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.DefaultRequestHeaders.Add("User-Agent", "GatewayAPI/1.0");
+                // Cliente com timeout de 60 minutos, configurado no Program.cs
+                var client = _httpClientFactory.CreateClient(Configuracao.ServicosDestino.ClienteHttpTarefa);
 
                 // ⭐ Usar CancellationTokenSource com timeout
                 using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(60));
@@ -397,7 +361,7 @@ namespace GatewayAPI.Controllers
             {
                 // Desserializar para ver o conteúdo
                 var json = JsonSerializer.Serialize(resultado);
-                _logger.LogInformation("📦 Conteúdo do callback: {Json}", json);
+                _logger.LogDebug("📦 Conteúdo do callback: {Json}", json);
 
                 // Extrair informações importantes
                 using var doc = JsonDocument.Parse(json);

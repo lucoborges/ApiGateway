@@ -1,42 +1,36 @@
-name: Deploy Automático .NET Core
+name: Testes e Deploy
 
 on:
   push:
     branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
-    runs-on: self-hosted 
+  # Roda em máquina do GitHub (não no servidor): compila e executa os testes em todo push e pull request
+  testes:
+    runs-on: ubuntu-latest
     steps:
-      - name: Parar, Atualizar e Reiniciar
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Testes
+        run: dotnet test tests/GatewayAPI.Tests --nologo
+
+  # Roda no servidor, só em push na master e só se os testes passarem
+  deploy:
+    needs: testes
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: self-hosted
+    concurrency: deploy-producao
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publicar, trocar e verificar
+        shell: powershell
         run: |
-          # Pasta de onde o gateway de produção roda (tarefa agendada "GatewayAPI": dotnet run --no-build)
-          $projectPath = "C:\Users\Administrator\ApiGateway"
-          $taskName = "GatewayAPI"
-          $processName = "GatewayAPI"
-          
-          Write-Host "1. Parando..."
-          Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 3
-          Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 3
-          
-          Write-Host "2. Atualizando e compilando..."
-          cd $projectPath
-          # bin/ e obj/ deixaram de ser rastreados: descarta as alterações locais de build
-          # nessas pastas (enquanto ainda estiverem no índice) para o pull não ser recusado
-          if (git ls-files bin obj) { git checkout -- bin obj }
-          git pull origin master
-          dotnet build
-          
-          Write-Host "3. Iniciando..."
-          Start-ScheduledTask -TaskName $taskName
-          Start-Sleep -Seconds 5
-          
-          $proc = Get-Process -Name $processName -ErrorAction SilentlyContinue
-          if ($proc) {
-              Write-Host "✅ SUCESSO! PID: $($proc.Id)" -ForegroundColor Green
-          } else {
-              Write-Host "❌ ERRO: Processo não iniciou" -ForegroundColor Red
-              exit 1
-          }
+          $versao = "${{ github.sha }}".Substring(0, 7)
+          & .\deploy\deploy.ps1 -Versao $versao
+          exit $LASTEXITCODE

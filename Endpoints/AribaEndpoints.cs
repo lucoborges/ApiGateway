@@ -42,7 +42,7 @@ namespace GatewayAPI.Endpoints
                 {
                     using var leitor = new StreamReader(contexto.Request.Body, Encoding.UTF8);
                     var corpo = await leitor.ReadToEndAsync();
-                    logger.LogInformation("📥 [GATEWAY-ARIBA] Recebido na entrada do Ariba: {Corpo}", corpo);
+                    logger.LogDebug("📥 [GATEWAY-ARIBA] Recebido na entrada do Ariba: {Corpo}", corpo);
                     requisicao.Content = new StringContent(corpo, Encoding.UTF8, "application/json");
                 }
 
