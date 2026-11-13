@@ -22,6 +22,9 @@ jobs:
           
           Write-Host "2. Atualizando e compilando..."
           cd $projectPath
+          # bin/ e obj/ deixaram de ser rastreados: descarta as alterações locais de build
+          # nessas pastas (enquanto ainda estiverem no índice) para o pull não ser recusado
+          if (git ls-files bin obj) { git checkout -- bin obj }
           git pull origin master
           dotnet build
           
