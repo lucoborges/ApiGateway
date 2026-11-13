@@ -10,7 +10,8 @@ jobs:
     steps:
       - name: Parar, Atualizar e Reiniciar
         run: |
-          $projectPath = "C:\Users\Administrator\Desktop\GatewayAPI\GatewayAPI"
+          # Pasta de onde o gateway de produção roda (tarefa agendada "GatewayAPI": dotnet run --no-build)
+          $projectPath = "C:\Users\Administrator\ApiGateway"
           $taskName = "GatewayAPI"
           $processName = "GatewayAPI"
           
