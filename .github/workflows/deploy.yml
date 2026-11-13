@@ -27,10 +27,19 @@ jobs:
     runs-on: self-hosted
     concurrency: deploy-producao
     steps:
-      - uses: actions/checkout@v4
-      - name: Publicar, trocar e verificar
+      # O servidor é Windows Server 2012 R2: as ações do GitHub baseadas em Node.js (como
+      # actions/checkout) não rodam nele, então o código é baixado com git direto.
+      - name: Baixar o código, publicar, trocar e verificar
         shell: powershell
         run: |
+          $codigo = Join-Path $env:RUNNER_TEMP 'codigo'
+          if (Test-Path $codigo) { Remove-Item $codigo -Recurse -Force }
+          git init -q $codigo
+          git -C $codigo fetch -q --depth 1 "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ${{ github.sha }}
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao baixar o codigo. O gateway nao foi alterado.' }
+          git -C $codigo checkout -q FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Falha no checkout. O gateway nao foi alterado.' }
+
           $versao = "${{ github.sha }}".Substring(0, 7)
-          & .\deploy\deploy.ps1 -Versao $versao
+          & (Join-Path $codigo 'deploy\deploy.ps1') -Versao $versao
           exit $LASTEXITCODE
