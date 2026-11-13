@@ -1,4 +1,5 @@
-﻿using GatewayAPI.Interfaces;
+﻿using GatewayAPI.Endpoints;
+using GatewayAPI.Interfaces;
 using GatewayAPI.Models;
 using GatewayAPI.Services;
 using Microsoft.AspNetCore.Http.Json;
@@ -11,7 +12,12 @@ using System.Text.Json.Serialization;
 Console.Title = "GATEWAY - ROTEADOR DE PROGRAMAS";
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls("http://0.0.0.0:5000");
+
+// Entrada dedicada ao AribaSourcing (origem -> localhost:5001 -> gateway -> AribaSourcing em localhost:6005)
+var aribaEntradaUrl = builder.Configuration.GetValue<string>("Gateway:Ariba:EntradaUrl") ?? AribaEndpoints.EntradaUrlPadrao;
+var aribaServicoUrl = builder.Configuration.GetValue<string>("Gateway:Ariba:ServicoUrl") ?? AribaEndpoints.ServicoUrlPadrao;
+
+builder.WebHost.UseUrls("http://0.0.0.0:5000", aribaEntradaUrl);
 
 // 1. Configurar JSON serialization
 builder.Services.Configure<JsonOptions>(options =>
@@ -89,6 +95,14 @@ builder.Services.AddHttpClient("DatasheetService", client =>
 })
 .AddPolicyHandler(GetRetryPolicy())
 .AddPolicyHandler(GetCircuitBreakerPolicy());
+// O AribaSourcing responde na hora (o processamento segue em segundo plano), então o timeout é curto
+builder.Services.AddHttpClient(AribaEndpoints.NomeHttpClient, client =>
+{
+    client.BaseAddress = new Uri(aribaServicoUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("User-Agent", "GatewayAPI/1.0");
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
 
 // 5. Registrar serviços do Gateway
 builder.Services.AddSingleton<IRouteRegistry, RouteRegistry>();
@@ -114,6 +128,7 @@ if (app.Environment.IsDevelopment())
 app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
+app.MapAribaEndpoints(aribaEntradaUrl);
 
 // 7. ⭐⭐ CONFIGURAR ROTAS CORRETAMENTE ⭐⭐
 try
@@ -139,6 +154,7 @@ try
     Console.WriteLine("\n✅ API Gateway iniciado com sucesso!");
     Console.WriteLine("📍 Endpoint: http://192.168.1.250:5000");
     Console.WriteLine("📚 Swagger: http://192.168.1.250:5000/swagger");
+    Console.WriteLine($"📍 Entrada Ariba: {aribaEntradaUrl}/api/ariba/iniciar -> {aribaServicoUrl}");
 }
 catch (Exception ex)
 {
@@ -146,7 +162,8 @@ catch (Exception ex)
     throw;
 }
 
-app.Run("http://*:5000");
+// Os endereços vêm do UseUrls acima (porta 5000 + entrada do Ariba); Run(url) descartaria a segunda entrada
+app.Run();
 
 // ⭐⭐ POLICIES PARA RESILIÊNCIA ⭐⭐
 static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()

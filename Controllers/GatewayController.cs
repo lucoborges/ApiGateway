@@ -15,12 +15,16 @@ namespace GatewayAPI.Controllers
         private readonly IServiceRouter _serviceRouter;
         private readonly ILogger<GatewayController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly string _aribaServicoUrl;
 
         public GatewayController(
             IServiceRouter serviceRouter,
             ILogger<GatewayController> logger,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration)
         {
+            _aribaServicoUrl = (configuration.GetValue<string>("Gateway:Ariba:ServicoUrl")
+                ?? Endpoints.AribaEndpoints.ServicoUrlPadrao).TrimEnd('/');
             _serviceRouter = serviceRouter;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -266,6 +270,8 @@ namespace GatewayAPI.Controllers
                     "FORNECEDOR" => "http://localhost:6002/api/fornecedores/cadastrar",
                     "CLIENTE" => "http://localhost:6003/api/clientes/cadastrar",
                     "DATASHEET" => "http://localhost:6004/api/datasheet/processar",
+                    // AribaSourcing: inicia o processamento / define a prioridade das empresas (dados.prioridade)
+                    "ARIBA" => $"{_aribaServicoUrl}/api/ariba/iniciar",
                     _ => throw new ArgumentException($"Tipo de tarefa inválido: {tipoTarefa}")
                 };
 
