@@ -103,6 +103,9 @@ static IAsyncPolicy<HttpResponseMessage> GetTimeoutPolicy(int timeoutMinutes = 6
 }
 
 // 4. HTTP Client Configuration
+// Toda chamada para o HSE-Cadastros (produtos, fornecedores, clientes) leva a chave Gateway:ChaveCadastros
+builder.Services.AddTransient<ChaveCadastrosHandler>();
+builder.Services.ConfigureHttpClientDefaults(http => http.AddHttpMessageHandler<ChaveCadastrosHandler>());
 var timeoutMinutes = builder.Configuration.GetValue<int>("Gateway:Timeout:HttpClientTimeoutMinutes", 60);
 
 builder.Services.AddHttpClient("GatewayClient", client =>

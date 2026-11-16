@@ -35,6 +35,10 @@ de ambiente trocando `:` por `__` (ex.: `Gateway__Servicos__Produto`).
 - **`ApiKey`**: vazia = sem autenticação. Se definida, toda chamada precisa do cabeçalho `X-Api-Key`
   (exceto `/health` e `/swagger`). Defina pela variável de ambiente `Gateway__ApiKey` no servidor;
   não grave a chave no repositório. Antes de ativar, atualize todos os programas que chamam o gateway.
+- **`ChaveCadastros`**: vazia = não envia. Se definida, o gateway envia esse valor no cabeçalho `X-Api-Key`
+  de toda chamada para produtos, fornecedores e clientes (HSE-Cadastros); os outros destinos não recebem.
+  Tem de ser igual à `Seguranca:ApiKey` do HSE-Cadastros. Defina pela variável de ambiente
+  `Gateway__ChaveCadastros`. Para ativar: primeiro defina aqui e reinicie o gateway, depois ative no HSE-Cadastros.
 - **`Swagger`**: `false` desliga a documentação.
 - **`Logs:Pasta`**: onde gravar os logs. Vazio = pasta `logs`.
 

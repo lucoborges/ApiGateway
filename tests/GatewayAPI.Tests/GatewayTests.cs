@@ -23,10 +23,16 @@ namespace GatewayAPI.Tests
         {
             public List<(HttpMethod Metodo, Uri Url, string Corpo)> Chamadas { get; } = new();
 
+            /// <summary>Valor do cabeçalho X-Api-Key de cada chamada recebida (null = sem cabeçalho).</summary>
+            public List<string> ChavesRecebidas { get; } = new();
+
             protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage requisicao, CancellationToken cancelamento)
             {
                 var corpo = requisicao.Content == null ? "" : await requisicao.Content.ReadAsStringAsync(cancelamento);
                 Chamadas.Add((requisicao.Method, requisicao.RequestUri, corpo));
+                ChavesRecebidas.Add(requisicao.Headers.TryGetValues(ApiKeyMiddleware.Cabecalho, out var valores)
+                    ? string.Join(",", valores)
+                    : null);
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("{\"recebido\":true}", Encoding.UTF8, "application/json")
@@ -34,10 +40,14 @@ namespace GatewayAPI.Tests
             }
         }
 
-        private static WebApplicationFactory<Program> CriarGateway(DestinoFalso destino, string apiKey = null)
+        private static WebApplicationFactory<Program> CriarGateway(DestinoFalso destino, string apiKey = null, string chaveCadastros = null)
         {
             return new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
             {
+                if (chaveCadastros != null)
+                {
+                    host.UseSetting(ChaveCadastrosHandler.Configuracao, chaveCadastros);
+                }
                 host.UseSetting("Gateway:Logs:Pasta", Path.Combine(Path.GetTempPath(), "gatewayapi-testes-logs"));
                 if (apiKey != null)
                 {
@@ -148,6 +158,61 @@ namespace GatewayAPI.Tests
 
             Assert.Equal(HttpStatusCode.NotFound, resposta.StatusCode);
             Assert.Empty(destino.Chamadas);
+        }
+
+        [Theory]
+        [InlineData("PRODUTO", "chave-dos-cadastros")]
+        [InlineData("FORNECEDOR", "chave-dos-cadastros")]
+        [InlineData("CLIENTE", "chave-dos-cadastros")]
+        [InlineData("DATASHEET", null)]
+        [InlineData("ARIBA", null)]
+        public async Task Chave_dos_cadastros_so_e_enviada_para_produtos_fornecedores_e_clientes(string tipoTarefa, string chaveEsperada)
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, chaveCadastros: "chave-dos-cadastros");
+
+            var resposta = await ClienteNaPorta(gateway, 5000).PostAsJsonAsync("/api/gateway/tarefa", new
+            {
+                codigoTarefa = "T-1",
+                tipoTarefa,
+                dados = new { nome = "teste" }
+            });
+
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+            Assert.Equal(chaveEsperada, Assert.Single(destino.ChavesRecebidas));
+        }
+
+        [Fact]
+        public async Task Sem_chave_dos_cadastros_nenhum_cabecalho_de_chave_e_enviado()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino);
+
+            await ClienteNaPorta(gateway, 5000).PostAsJsonAsync("/api/gateway/tarefa", new
+            {
+                codigoTarefa = "T-1",
+                tipoTarefa = "PRODUTO"
+            });
+
+            Assert.Null(Assert.Single(destino.ChavesRecebidas));
+        }
+
+        [Fact]
+        public async Task Chave_de_quem_chama_o_gateway_nao_e_a_que_segue_para_os_cadastros()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, apiKey: "chave-do-gateway", chaveCadastros: "chave-dos-cadastros");
+            var cliente = ClienteNaPorta(gateway, 5000);
+            cliente.DefaultRequestHeaders.Add(ApiKeyMiddleware.Cabecalho, "chave-do-gateway");
+
+            var resposta = await cliente.PostAsJsonAsync("/api/gateway/tarefa", new
+            {
+                codigoTarefa = "T-1",
+                tipoTarefa = "CLIENTE"
+            });
+
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+            Assert.Equal("chave-dos-cadastros", Assert.Single(destino.ChavesRecebidas));
         }
 
         [Fact]
