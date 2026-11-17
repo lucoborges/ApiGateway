@@ -173,8 +173,11 @@ builder.Services.AddSingleton<ITrackingService, TrackingService>();
 var app = builder.Build();
 
 // 6. Configure the HTTP request pipeline
-// O Swagger fica disponível também em produção, a menos que Gateway:Swagger seja false
-if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Gateway:Swagger", true))
+// Quem pode chamar pela rede (Gateway:IpsPermitidos); vem antes de tudo, inclusive do Swagger
+app.UseMiddleware<IpsPermitidosMiddleware>();
+
+// Swagger: sempre em Development; em produção só se Gateway:Swagger for true
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Gateway:Swagger", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>

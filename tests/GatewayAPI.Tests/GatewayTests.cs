@@ -6,6 +6,7 @@ using GatewayAPI.Configuracao;
 using GatewayAPI.Endpoints;
 using GatewayAPI.Middleware;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,10 +41,19 @@ namespace GatewayAPI.Tests
             }
         }
 
-        private static WebApplicationFactory<Program> CriarGateway(DestinoFalso destino, string apiKey = null, string chaveCadastros = null)
+        private static WebApplicationFactory<Program> CriarGateway(DestinoFalso destino, string apiKey = null, string chaveCadastros = null,
+            string ipsPermitidos = null, string ambiente = null)
         {
             return new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
             {
+                if (ambiente != null)
+                {
+                    host.UseEnvironment(ambiente);
+                }
+                if (ipsPermitidos != null)
+                {
+                    host.UseSetting(IpsPermitidosMiddleware.Configuracao, ipsPermitidos);
+                }
                 if (chaveCadastros != null)
                 {
                     host.UseSetting(ChaveCadastrosHandler.Configuracao, chaveCadastros);
@@ -229,6 +239,94 @@ namespace GatewayAPI.Tests
 
             Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
             Assert.Empty(destino.Chamadas);
+        }
+
+        /// <summary>Faz uma chamada simulando que ela veio do IP informado.</summary>
+        private static Task<HttpContext> ChamarDe(WebApplicationFactory<Program> gateway, string ip, string metodo, string caminho, string json = null)
+        {
+            return gateway.Server.SendAsync(contexto =>
+            {
+                contexto.Connection.RemoteIpAddress = IPAddress.Parse(ip);
+                contexto.Request.Method = metodo;
+                contexto.Request.Host = new HostString("localhost", 5000);
+                contexto.Request.Path = caminho;
+                if (json != null)
+                {
+                    contexto.Request.ContentType = "application/json";
+                    contexto.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(json));
+                }
+            });
+        }
+
+        private const string TarefaProduto = "{\"codigoTarefa\":\"T-1\",\"tipoTarefa\":\"PRODUTO\",\"dados\":{}}";
+
+        [Theory]
+        [InlineData("192.168.1.250")]
+        [InlineData("::ffff:192.168.1.250")]
+        [InlineData("127.0.0.1")]
+        [InlineData("::1")]
+        public async Task Ips_permitidos_e_localhost_passam(string ip)
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, ipsPermitidos: "192.168.1.250");
+
+            var contexto = await ChamarDe(gateway, ip, "POST", "/api/gateway/tarefa", TarefaProduto);
+
+            Assert.Equal(StatusCodes.Status200OK, contexto.Response.StatusCode);
+            Assert.Single(destino.Chamadas);
+        }
+
+        [Fact]
+        public async Task Ip_fora_da_lista_recebe_403_e_nada_e_encaminhado()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, ipsPermitidos: "192.168.1.250");
+
+            var contexto = await ChamarDe(gateway, "192.168.1.77", "POST", "/api/gateway/tarefa", TarefaProduto);
+
+            Assert.Equal(StatusCodes.Status403Forbidden, contexto.Response.StatusCode);
+            Assert.Empty(destino.Chamadas);
+        }
+
+        [Fact]
+        public async Task Ip_fora_da_lista_ainda_ve_o_health()
+        {
+            using var gateway = CriarGateway(new DestinoFalso(), ipsPermitidos: "192.168.1.250");
+
+            var contexto = await ChamarDe(gateway, "192.168.1.77", "GET", "/health");
+
+            Assert.Equal(StatusCodes.Status200OK, contexto.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Sem_lista_configurada_qualquer_ip_passa()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino);
+
+            var contexto = await ChamarDe(gateway, "192.168.1.77", "POST", "/api/gateway/tarefa", TarefaProduto);
+
+            Assert.Equal(StatusCodes.Status200OK, contexto.Response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Swagger_fica_desligado_em_producao()
+        {
+            using var gateway = CriarGateway(new DestinoFalso(), ambiente: "Production");
+
+            var resposta = await ClienteNaPorta(gateway, 5000).GetAsync("/swagger/v1/swagger.json");
+
+            Assert.Equal(HttpStatusCode.NotFound, resposta.StatusCode);
+        }
+
+        [Fact]
+        public async Task Swagger_aparece_em_development()
+        {
+            using var gateway = CriarGateway(new DestinoFalso(), ambiente: "Development");
+
+            var resposta = await ClienteNaPorta(gateway, 5000).GetAsync("/swagger/v1/swagger.json");
+
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
         }
 
         [Fact]

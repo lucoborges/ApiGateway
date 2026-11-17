@@ -20,7 +20,7 @@ Exemplo de tarefa:
 { "codigoTarefa": "T-123", "tipoTarefa": "PRODUTO", "dados": { } }
 ```
 
-Outras rotas: `GET /health` (saúde e versão em execução), `/swagger` (documentação) e
+Outras rotas: `GET /health` (saúde e versão em execução), `/swagger` (documentação, só fora de produção) e
 `/api/tracking` (acompanhamento).
 
 O gateway escuta na porta 5000 em todas as interfaces da máquina; a entrada do Ariba (5001)
@@ -39,7 +39,10 @@ de ambiente trocando `:` por `__` (ex.: `Gateway__Servicos__Produto`).
   de toda chamada para produtos, fornecedores e clientes (HSE-Cadastros); os outros destinos não recebem.
   Tem de ser igual à `Seguranca:ApiKey` do HSE-Cadastros. Defina pela variável de ambiente
   `Gateway__ChaveCadastros`. Para ativar: primeiro defina aqui e reinicie o gateway, depois ative no HSE-Cadastros.
-- **`Swagger`**: `false` desliga a documentação.
+- **`IpsPermitidos`**: IPs que podem chamar o gateway pela rede, separados por vírgula. Vazio = qualquer um.
+  Chamadas de `localhost` e `/health` ficam sempre livres; as recusadas recebem 403 e aparecem no log
+  com o IP. No servidor fica na variável de ambiente `Gateway__IpsPermitidos` do serviço (hoje, a VM `192.168.1.250`).
+- **`Swagger`**: em produção fica desligado; `true` liga. Em Development aparece sempre.
 - **`Logs:Pasta`**: onde gravar os logs. Vazio = pasta `logs`.
 
 ## Rodar na sua máquina
