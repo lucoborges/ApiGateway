@@ -42,10 +42,14 @@ namespace GatewayAPI.Tests
         }
 
         private static WebApplicationFactory<Program> CriarGateway(DestinoFalso destino, string apiKey = null, string chaveCadastros = null,
-            string ipsPermitidos = null, string ambiente = null)
+            string ipsPermitidos = null, string ambiente = null, string chaveAriba = null)
         {
             return new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
             {
+                if (chaveAriba != null)
+                {
+                    host.UseSetting(ChavesDestinoHandler.ConfiguracaoAriba, chaveAriba);
+                }
                 if (ambiente != null)
                 {
                     host.UseEnvironment(ambiente);
@@ -56,7 +60,7 @@ namespace GatewayAPI.Tests
                 }
                 if (chaveCadastros != null)
                 {
-                    host.UseSetting(ChaveCadastrosHandler.Configuracao, chaveCadastros);
+                    host.UseSetting(ChavesDestinoHandler.ConfiguracaoCadastros, chaveCadastros);
                 }
                 host.UseSetting("Gateway:Logs:Pasta", Path.Combine(Path.GetTempPath(), "gatewayapi-testes-logs"));
                 if (apiKey != null)
@@ -190,6 +194,53 @@ namespace GatewayAPI.Tests
 
             Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
             Assert.Equal(chaveEsperada, Assert.Single(destino.ChavesRecebidas));
+        }
+
+        [Theory]
+        [InlineData("ARIBA", "chave-do-ariba")]
+        [InlineData("PRODUTO", "chave-dos-cadastros")]
+        [InlineData("DATASHEET", null)]
+        public async Task Cada_destino_recebe_so_a_propria_chave(string tipoTarefa, string chaveEsperada)
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, chaveCadastros: "chave-dos-cadastros", chaveAriba: "chave-do-ariba");
+
+            var resposta = await ClienteNaPorta(gateway, 5000).PostAsJsonAsync("/api/gateway/tarefa", new
+            {
+                codigoTarefa = "T-1",
+                tipoTarefa,
+                dados = new { nome = "teste" }
+            });
+
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+            Assert.Equal(chaveEsperada, Assert.Single(destino.ChavesRecebidas));
+        }
+
+        [Fact]
+        public async Task Entrada_do_Ariba_envia_a_chave_do_ariba_e_nao_a_de_quem_chamou()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino, chaveAriba: "chave-do-ariba");
+            var cliente = ClienteNaPorta(gateway, 5001);
+            cliente.DefaultRequestHeaders.Add(ApiKeyMiddleware.Cabecalho, "chave-de-quem-chamou");
+
+            var resposta = await cliente.PostAsJsonAsync("/api/ariba/iniciar", new { codigoTarefa = "T-1" });
+
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+            Assert.Equal("chave-do-ariba", Assert.Single(destino.ChavesRecebidas));
+        }
+
+        [Fact]
+        public async Task Chave_de_quem_chamou_nao_segue_para_destino_sem_chave()
+        {
+            var destino = new DestinoFalso();
+            using var gateway = CriarGateway(destino);
+            var cliente = ClienteNaPorta(gateway, 5000);
+            cliente.DefaultRequestHeaders.Add(ApiKeyMiddleware.Cabecalho, "chave-de-quem-chamou");
+
+            await cliente.PostAsJsonAsync("/api/gateway/tarefa", new { codigoTarefa = "T-1", tipoTarefa = "DATASHEET" });
+
+            Assert.Null(Assert.Single(destino.ChavesRecebidas));
         }
 
         [Fact]

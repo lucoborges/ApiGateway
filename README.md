@@ -39,6 +39,9 @@ de ambiente trocando `:` por `__` (ex.: `Gateway__Servicos__Produto`).
   de toda chamada para produtos, fornecedores e clientes (HSE-Cadastros); os outros destinos não recebem.
   Tem de ser igual à `Seguranca:ApiKey` do HSE-Cadastros. Defina pela variável de ambiente
   `Gateway__ChaveCadastros`. Para ativar: primeiro defina aqui e reinicie o gateway, depois ative no HSE-Cadastros.
+- **`ChaveAriba`**: igual à anterior, para o AribaSourcing (tarefa `ARIBA` e entrada da porta 5001). Tem de ser
+  igual à `Api:Chave` do AribaSourcing; no servidor, variável de ambiente `Gateway__ChaveAriba`. A chave de quem
+  chama o gateway nunca é repassada a nenhum destino.
 - **`IpsPermitidos`**: IPs que podem chamar o gateway pela rede, separados por vírgula. Vazio = qualquer um.
   Chamadas de `localhost` e `/health` ficam sempre livres; as recusadas recebem 403 e aparecem no log
   com o IP. No servidor fica na variável de ambiente `Gateway__IpsPermitidos` do serviço (hoje, a VM `192.168.1.250`).
