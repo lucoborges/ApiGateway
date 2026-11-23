@@ -1,7 +1,7 @@
 # GatewayAPI
 
 Gateway que recebe tarefas dos programas de origem e encaminha para os programas internos
-(cadastro de produtos, fornecedores, clientes, datasheet e AribaSourcing).
+(cadastro de produtos, fornecedores, clientes, transportadoras, datasheet e AribaSourcing).
 
 ## Como funciona
 
@@ -10,6 +10,7 @@ Gateway que recebe tarefas dos programas de origem e encaminha para os programas
 | `POST :5000/api/gateway/tarefa` com `tipoTarefa: PRODUTO` | `/api/produtos/cadastrar` | `Gateway:Servicos:Produto` |
 | idem, `FORNECEDOR` | `/api/fornecedores/cadastrar` | `Gateway:Servicos:Fornecedor` |
 | idem, `CLIENTE` | `/api/clientes/cadastrar` | `Gateway:Servicos:Cliente` |
+| idem, `TRANSPORTADORA` (`dados.cnpj`) | `/api/transportadoras/cadastrar` (porta 6006) | `Gateway:Servicos:Transportadora` |
 | idem, `DATASHEET` | `/api/datasheet/processar` | `Gateway:Servicos:Datasheet` |
 | idem, `ARIBA` | `/api/ariba/iniciar` | `Gateway:Ariba:ServicoUrl` |
 | `POST :5001/api/ariba/iniciar`, `GET :5001/api/ariba/status` | AribaSourcing | `Gateway:Ariba:*` |
@@ -36,7 +37,7 @@ de ambiente trocando `:` por `__` (ex.: `Gateway__Servicos__Produto`).
   (exceto `/health` e `/swagger`). Defina pela variável de ambiente `Gateway__ApiKey` no servidor;
   não grave a chave no repositório. Antes de ativar, atualize todos os programas que chamam o gateway.
 - **`ChaveCadastros`**: vazia = não envia. Se definida, o gateway envia esse valor no cabeçalho `X-Api-Key`
-  de toda chamada para produtos, fornecedores e clientes (HSE-Cadastros); os outros destinos não recebem.
+  de toda chamada para produtos, fornecedores, clientes e transportadoras (HSE-Cadastros); os outros destinos não recebem.
   Tem de ser igual à `Seguranca:ApiKey` do HSE-Cadastros. Defina pela variável de ambiente
   `Gateway__ChaveCadastros`. Para ativar: primeiro defina aqui e reinicie o gateway, depois ative no HSE-Cadastros.
 - **`ChaveAriba`**: igual à anterior, para o AribaSourcing (tarefa `ARIBA` e entrada da porta 5001). Tem de ser

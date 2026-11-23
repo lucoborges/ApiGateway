@@ -4,7 +4,7 @@ namespace GatewayAPI.Middleware
 {
     /// <summary>
     /// Envia no cabeçalho X-Api-Key a chave de cada programa de destino, em toda chamada que sai do gateway:
-    ///   Gateway:ChaveCadastros -> HSE-Cadastros (produtos, fornecedores e clientes)
+    ///   Gateway:ChaveCadastros -> HSE-Cadastros (produtos, fornecedores, clientes e transportadoras)
     ///   Gateway:ChaveAriba     -> AribaSourcing (pela tarefa ARIBA e pela entrada dedicada da porta 5001)
     /// Os demais destinos não recebem chave. A chave de quem chamou o gateway nunca segue para o destino.
     /// Chave vazia = nada muda para aquele destino. Vale para todos os clientes HTTP do gateway.
@@ -20,7 +20,7 @@ namespace GatewayAPI.Middleware
         public ChavesDestinoHandler(IConfiguration configuracao, ServicosDestino servicos)
         {
             var cadastros = (configuracao[ConfiguracaoCadastros] ?? string.Empty).Trim();
-            foreach (var endereco in new[] { servicos.Produto, servicos.Fornecedor, servicos.Cliente })
+            foreach (var endereco in new[] { servicos.Produto, servicos.Fornecedor, servicos.Cliente, servicos.Transportadora })
             {
                 Registrar(endereco, cadastros);
             }

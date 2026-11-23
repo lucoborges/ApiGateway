@@ -112,6 +112,7 @@ namespace GatewayAPI.Tests
         [InlineData("PRODUTO", "http://localhost:6001/api/produtos/cadastrar")]
         [InlineData("fornecedor", "http://localhost:6002/api/fornecedores/cadastrar")]
         [InlineData("CLIENTE", "http://localhost:6003/api/clientes/cadastrar")]
+        [InlineData("TRANSPORTADORA", "http://localhost:6006/api/transportadoras/cadastrar")]
         [InlineData("DATASHEET", "http://localhost:6004/api/datasheet/processar")]
         [InlineData("ARIBA", "http://localhost:6005/api/ariba/iniciar")]
         public async Task Tarefa_e_encaminhada_para_o_programa_certo(string tipoTarefa, string urlEsperada)
@@ -178,9 +179,10 @@ namespace GatewayAPI.Tests
         [InlineData("PRODUTO", "chave-dos-cadastros")]
         [InlineData("FORNECEDOR", "chave-dos-cadastros")]
         [InlineData("CLIENTE", "chave-dos-cadastros")]
+        [InlineData("TRANSPORTADORA", "chave-dos-cadastros")]
         [InlineData("DATASHEET", null)]
         [InlineData("ARIBA", null)]
-        public async Task Chave_dos_cadastros_so_e_enviada_para_produtos_fornecedores_e_clientes(string tipoTarefa, string chaveEsperada)
+        public async Task Chave_dos_cadastros_so_e_enviada_para_o_HSE_Cadastros(string tipoTarefa, string chaveEsperada)
         {
             var destino = new DestinoFalso();
             using var gateway = CriarGateway(destino, chaveCadastros: "chave-dos-cadastros");

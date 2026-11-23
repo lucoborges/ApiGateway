@@ -12,6 +12,7 @@ namespace GatewayAPI.Configuracao
         public string Produto { get; }
         public string Fornecedor { get; }
         public string Cliente { get; }
+        public string Transportadora { get; }
         public string Datasheet { get; }
         public string Ariba { get; }
 
@@ -20,16 +21,18 @@ namespace GatewayAPI.Configuracao
             Produto = Ler(configuracao, "Gateway:Servicos:Produto", "http://localhost:6001");
             Fornecedor = Ler(configuracao, "Gateway:Servicos:Fornecedor", "http://localhost:6002");
             Cliente = Ler(configuracao, "Gateway:Servicos:Cliente", "http://localhost:6003");
+            Transportadora = Ler(configuracao, "Gateway:Servicos:Transportadora", "http://localhost:6006");
             Datasheet = Ler(configuracao, "Gateway:Servicos:Datasheet", "http://localhost:6004");
             Ariba = Ler(configuracao, "Gateway:Ariba:ServicoUrl", Endpoints.AribaEndpoints.ServicoUrlPadrao);
         }
 
-        /// <summary>URL completa de destino para um tipo de tarefa (PRODUTO, FORNECEDOR, CLIENTE, DATASHEET, ARIBA).</summary>
+        /// <summary>URL completa de destino para um tipo de tarefa (PRODUTO, FORNECEDOR, CLIENTE, TRANSPORTADORA, DATASHEET, ARIBA).</summary>
         public string UrlDaTarefa(string tipoTarefa) => (tipoTarefa ?? string.Empty).ToUpperInvariant() switch
         {
             "PRODUTO" => $"{Produto}/api/produtos/cadastrar",
             "FORNECEDOR" => $"{Fornecedor}/api/fornecedores/cadastrar",
             "CLIENTE" => $"{Cliente}/api/clientes/cadastrar",
+            "TRANSPORTADORA" => $"{Transportadora}/api/transportadoras/cadastrar",
             "DATASHEET" => $"{Datasheet}/api/datasheet/processar",
             // AribaSourcing: inicia o processamento / define a prioridade das empresas (dados.prioridade)
             "ARIBA" => $"{Ariba}/api/ariba/iniciar",

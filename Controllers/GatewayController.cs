@@ -440,6 +440,14 @@ namespace GatewayAPI.Controllers
                         inscricaoEstadual = GetStringValue(tarefa.Dados, "inscricaoEstadual")
                     }
                 },
+                "TRANSPORTADORA" => new
+                {
+                    codigoTarefa = tarefa.CodigoTarefa,
+                    dados = new
+                    {
+                        cnpj = GetStringValue(tarefa.Dados, "cnpj")
+                    }
+                },
                 _ => new { codigoTarefa = tarefa.CodigoTarefa, dados = tarefa.Dados }
             };
         }
@@ -463,6 +471,7 @@ namespace GatewayAPI.Controllers
                 "PRODUTO" => "codigoProduto",
                 "FORNECEDOR" => "codigoFornecedor",
                 "CLIENTE" => "codigoCliente",
+                "TRANSPORTADORA" => "codigoTransportadora",
                 _ => null
             };
 
